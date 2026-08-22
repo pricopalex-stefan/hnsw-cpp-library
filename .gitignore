@@ -1,0 +1,12 @@
+build/
+.cache/
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.exe
+__pycache__/
+*.pyc
+.venv/
+CMakeUserPresets.json
