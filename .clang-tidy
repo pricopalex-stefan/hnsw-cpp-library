@@ -1,1 +1,1 @@
-Checks: 'bugprone-*,modernize-*,performance-*'
+Checks: 'bugprone-*,modernize-*,-modernize-use-trailing-return-type,performance-*'
