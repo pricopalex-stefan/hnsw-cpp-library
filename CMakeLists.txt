@@ -27,5 +27,21 @@ target_link_libraries(node_test
         hnsw
 )
 
-add_test(Name NodeTest 
-        COMMAND node_test)
+add_test(
+    NAME NodeTest 
+    COMMAND node_test
+)
+
+add_executable(metric_test
+    tests/MetricTest.cpp
+)
+
+target_link_libraries(metric_test
+    PRIVATE
+        hnsw
+)
+
+add_test(
+    NAME MetricTest
+    COMMAND metric_test
+)

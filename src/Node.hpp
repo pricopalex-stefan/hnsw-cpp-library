@@ -1,10 +1,9 @@
 #pragma once
 
+#include "Vector.hpp"
 #include <vector>
 
 namespace hnsw {
-
-    using Vector = std::vector<float>;
 
     class Node {
 
