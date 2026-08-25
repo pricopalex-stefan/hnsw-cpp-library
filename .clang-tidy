@@ -1,1 +1,10 @@
-Checks: 'bugprone-*,modernize-*,-modernize-use-trailing-return-type,performance-*'
+Checks: 
+  'bugprone-*,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  performance-*,
+  readability-*,
+  -readability-identifier-length,
+  -readability-uppercase-literal-suffix,
+  -readability-magic-numbers,
+  -bugprone-exception-escape'

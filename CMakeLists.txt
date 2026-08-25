@@ -8,6 +8,18 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+find_program(CLANG_TIDY_EXEC
+    clang-tidy
+)
+
+if(CLANG_TIDY_EXEC)
+    set(CMAKE_CXX_CLANG_TIDY 
+        ${CLANG_TIDY_EXEC};
+    )
+else()
+    message("clang-tidy not found")
+endif()
+
 enable_testing()
 
 add_library(hnsw INTERFACE)
