@@ -1,8 +1,8 @@
-#include "../src/Metric.hpp"
 #include "../src/CosineDistance.hpp"
 #include "../src/DotProductDistance.hpp"
 #include "../src/EuclideanDistance.hpp"
-#include "../src/Vector.hpp"
+#include  <hnsw/Metric.hpp>
+#include  <hnsw/Vector.hpp>
 
 class BadMetric {
     public:

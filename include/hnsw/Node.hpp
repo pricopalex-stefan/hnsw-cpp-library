@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Vector.hpp"
+#include <hnsw/Vector.hpp>
 #include <vector>
 
 namespace hnsw {
@@ -18,7 +18,7 @@ namespace hnsw {
             int id_;
             Vector data_;
             int level_;
-            std::vector<std::vector<int>> neighbors_;
+            std::vector<std::vector<std::size_t>> neighbors_;
     };
 
 }

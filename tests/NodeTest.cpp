@@ -1,8 +1,7 @@
 #include <cassert>
 #include <iostream>
 #include <type_traits>
-
-#include "../src/Node.hpp"
+#include <hnsw/Node.hpp>
 
 int main()
 {

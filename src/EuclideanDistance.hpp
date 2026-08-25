@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Vector.hpp"
+#include <hnsw/Vector.hpp>
 #include <cmath>
 
 namespace hnsw {

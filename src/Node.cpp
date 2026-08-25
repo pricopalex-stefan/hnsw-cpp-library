@@ -1,4 +1,5 @@
-#include "Node.hpp"
+#include <hnsw/Vector.hpp>
+#include <hnsw/Node.hpp>
 #include <utility>
 
 namespace hnsw {
