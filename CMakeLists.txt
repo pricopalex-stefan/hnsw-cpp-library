@@ -57,3 +57,19 @@ add_test(
     NAME MetricTest
     COMMAND metric_test
 )
+
+
+add_executable(hnsw_test
+    tests/HNSWIndexTest.cpp
+    src/Node.cpp
+)
+
+target_link_libraries(hnsw_test
+    PRIVATE
+        hnsw
+)
+
+add_test(
+    NAME HNSWIndexTest
+    COMMAND hnsw_test
+)

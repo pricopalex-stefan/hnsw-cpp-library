@@ -1,6 +1,6 @@
-#include "../src/CosineDistance.hpp"
-#include "../src/DotProductDistance.hpp"
-#include "../src/EuclideanDistance.hpp"
+#include  <hnsw/EuclideanDistance.hpp>
+#include  <hnsw/CosineDistance.hpp>
+#include  <hnsw/DotProductDistance.hpp>
 #include  <hnsw/Metric.hpp>
 #include  <hnsw/Vector.hpp>
 

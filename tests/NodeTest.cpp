@@ -16,14 +16,14 @@ int main()
 
     assert(node.data()[0] == 1.0f);
 
-    static_assert(noexcept(node.id()), "");
-    static_assert(noexcept(node.data()), "");
-    static_assert(noexcept(node.level()), "");
+    static_assert(noexcept(node.id()), "node.id() should be noexcept");
+    static_assert(noexcept(node.data()), "node.data() should be noexcept");
+    static_assert(noexcept(node.level()), "node.level() should be noexcept");
 
     static_assert(std::is_same_v<
         decltype(node.data()),
         const hnsw::Vector&
-        >, "");
+        >, "node.data() should return const hnsw::Vector&");
     
     return 0;
 }

@@ -6,6 +6,9 @@
 
 #include <vector>
 #include <optional>
+#include <random>
+
+class HnswIndexTest;
 
 /**
  * @brief Hierarchical Navigable Small World (HNSW) index.
@@ -16,15 +19,14 @@
 namespace hnsw {
     template <Metric M>
     class HnswIndex {
+        friend class ::HnswIndexTest;
         public:
             /** 
              * @brief Constructs an empty HNSW index
              * 
-             * @param metric The distance metric to use for comparing vectors.
              * @param config The configuration parameters for the HNSW index.
              */
-            HnswIndex(
-                M metric,
+            explicit HnswIndex(
                 HnswConfig config = {}
             );
 
@@ -60,8 +62,41 @@ namespace hnsw {
             HnswConfig config_;
 
             std::optional<std::size_t> entry_point_;
+            double level_multiplier_;
             std::size_t max_level_ = 0;
 
             std::vector<Node> nodes_;
+            std::mt19937 rng_;
+
+            struct DistanceComparator {
+                const Node& query_node;
+                const std::vector<Node>& nodes;
+                const M& metric;
+                bool max_heap;
+
+                bool operator()(std::size_t index_a, std::size_t index_b) const {
+                    const auto dist_a = metric(query_node.data(), nodes[index_a].data());
+                    const auto dist_b = metric(query_node.data(), nodes[index_b].data());
+                    // For max_heap the farthest node has the highest priority.
+                    // For min-heap the closest node has the highest priority.
+                    return max_heap ? dist_a < dist_b : dist_a > dist_b;
+                }
+            };
+
+            std::size_t random_layer();
+
+            /**
+             * @brief Searches for closest nodes at a specified level.
+             * 
+             * @param node The query node.
+             * @param level The graph level to search.
+             */
+            [[nodiscard]] 
+            std::vector<std::size_t> search_layer(
+                const Node& node,
+                std::size_t level
+            ) const;
     };
 }
+
+#include <hnsw/HnswIndex.tpp>
