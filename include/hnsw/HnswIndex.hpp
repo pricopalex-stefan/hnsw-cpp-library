@@ -61,7 +61,7 @@ namespace hnsw {
             M metric_;
             HnswConfig config_;
 
-            std::optional<std::size_t> entry_point_;
+            std::optional<std::size_t> global_entry_point_;
             double level_multiplier_;
             std::size_t max_level_ = 0;
 
@@ -89,13 +89,21 @@ namespace hnsw {
              * @brief Searches for closest nodes at a specified level.
              * 
              * @param node The query node.
+             * @param entry_point The entry_point for that level.
              * @param level The graph level to search.
              */
             [[nodiscard]] 
             std::vector<std::size_t> search_layer(
                 const Node& node,
+                std::size_t entry_point,
                 std::size_t level
             ) const;
+            
+            void connect_neighbors(
+                Node& node,
+                const std::vector<std::size_t>& neighbors,
+                std::size_t level
+            );
     };
 }
 

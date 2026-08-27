@@ -9,7 +9,7 @@
 
 class HnswIndexTest {
     public:
-        static void test_add_and_search() {
+        static void test_search_layer() {
             hnsw::HnswConfig config{
                 .M = 2,
                 .ef_construction = 2,
@@ -38,16 +38,37 @@ class HnswIndexTest {
             query.add_neighbor(0, level);
 
             index.nodes_ = nodes;
-            auto neighbors = index.search_layer(query, level);
+            index.global_entry_point_ = 0;
+            auto neighbors = index.search_layer(query, *index.global_entry_point_, level);
             
             assert(neighbors.size() == config.ef_construction);
             assert(neighbors[0] == 3);
             assert(neighbors[1] == 2);
         }
+
+        static void test_add() {
+            hnsw::HnswConfig config{
+                .M = 2,
+                .ef_construction = 2,
+                .ef_search = 2
+            };
+            hnsw::HnswIndex<hnsw::EuclideanDistance> index(config);
+
+            assert(!index.global_entry_point_.has_value());
+
+            index.add({0.0f, 1.0f});
+
+            assert(index.global_entry_point_ == 0);
+
+            index.add({1.0f, 1.0f});
+
+            assert(index.nodes_.size() == 2);
+        }
 };
 
 int main()
 {
-    HnswIndexTest::test_add_and_search();
+    HnswIndexTest::test_search_layer();
+    HnswIndexTest::test_add();
     return 0;
 }

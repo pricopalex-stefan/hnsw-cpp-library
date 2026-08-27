@@ -29,6 +29,7 @@ namespace hnsw {
     template<Metric M>
     std::vector<std::size_t> HnswIndex<M>::search_layer(
         const Node& node,
+        std::size_t entry_point,
         std::size_t level
     ) const
     {
@@ -52,20 +53,9 @@ namespace hnsw {
         
         std::unordered_set<std::size_t> visited;
 
-        // Inserting initial node ids into the candidates min heap and into result max heap.
-        for(const std::size_t neighbor_id : node.neighbors(level)) {
-            candidates.push(neighbor_id);
-            if(result.size() < config_.ef_construction) {
-                result.push(neighbor_id);
-
-            // Replace worst result if the new candidate is closer.
-            } else if(metric_(node.data(), nodes_[neighbor_id].data())
-                    < metric_(node.data(), nodes_[result.top()].data())){
-                result.pop();
-                result.push(neighbor_id);
-            }
-            visited.insert(neighbor_id);
-        }
+        candidates.push(entry_point);
+        result.push(entry_point);
+        visited.insert(entry_point);
 
         /**
          * Explore the candidate neighbors and keep at most ef_construction results.
@@ -105,5 +95,82 @@ namespace hnsw {
         }
         std::ranges::reverse(result_vector);
         return result_vector;
+    }
+
+    template <Metric M>
+    void HnswIndex<M>::connect_neighbors(
+        Node& node,
+        const std::vector<std::size_t>& neighbors,
+        std::size_t level
+    ) 
+    {
+        const std::size_t neighbor_count = std::min(neighbors.size(), config_.M);
+
+        for(std::size_t i = 0; i < neighbor_count; i++) {
+            const std::size_t neighbor_id = neighbors[i];
+            node.add_neighbor(neighbor_id, level);
+            nodes_[neighbor_id].add_neighbor(node.id(), level);
+        }
+    }
+
+    template <Metric M>
+    void HnswIndex<M>::add(const Vector& data) {
+        
+        std::size_t level_to_insert = random_layer();
+        Node nodeToInsert(nodes_.size(), data, level_to_insert);
+
+        /** 
+         * If the index is empty, insert the first node and use it 
+         * as the global entry point
+        */
+        if(!global_entry_point_) {
+            nodes_.push_back(nodeToInsert);
+            global_entry_point_ = nodeToInsert.id();
+            max_level_ = level_to_insert;
+        } else {
+            std::size_t current_entry_point = *global_entry_point_;
+
+            // Perform greedy navigation through the upper levels.
+            for(std::size_t l = max_level_; l >= level_to_insert + 1; --l) {
+                float min_dist = metric_(nodes_[current_entry_point].data(), nodeToInsert.data());
+                for(std::size_t neighbor_id : nodes_[current_entry_point].neighbors(l)) {
+                    const float dist_neighbor = metric_(nodes_[neighbor_id].data(), nodeToInsert.data());
+                    if(dist_neighbor < min_dist) {
+                        min_dist = dist_neighbor;
+                        current_entry_point = neighbor_id;
+                    }
+                }
+            }
+
+            // Search for candidate neighbors and connect to the node
+            // at each level down to level 0
+            for(std::size_t l = level_to_insert;; --l) {
+                std::vector<std::size_t> closest_neighbors = search_layer(nodeToInsert, current_entry_point, l);
+                connect_neighbors(nodeToInsert, closest_neighbors, l);
+                
+                // Use the closest candidate as the entry point for the next level.
+                if(!closest_neighbors.empty()) {
+                    current_entry_point = closest_neighbors[0];
+                }
+                if(l == 0) {
+                    break;
+                }
+            }
+
+            // If the new node has the highest level , make it the new global entry point
+            if(max_level_ < level_to_insert) {
+                max_level_ = level_to_insert;
+                global_entry_point_ = nodeToInsert.id();
+            }
+
+            nodes_.push_back(nodeToInsert);
+        }
+    }
+
+    template<Metric M> 
+    void HnswIndex<M>::add(const std::vector<Vector>& data) {
+        for(std::vector<Vector> vector : data) {
+            this->add(vector);
+        }
     }
 }
