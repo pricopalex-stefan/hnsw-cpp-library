@@ -98,10 +98,17 @@ namespace hnsw {
                 std::size_t entry_point,
                 std::size_t level
             ) const;
+
+            [[nodiscard]]
+            std::vector<std::size_t> select_best_neighbors(
+                const Node& node,
+                const std::vector<std::size_t> &candidates,
+                std::size_t
+            ) const;
             
             void connect_neighbors(
                 Node& node,
-                const std::vector<std::size_t>& neighbors,
+                std::vector<std::size_t>& neighbors,
                 std::size_t level
             );
     };

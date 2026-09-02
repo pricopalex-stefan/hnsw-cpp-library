@@ -14,6 +14,7 @@ namespace hnsw {
             [[nodiscard]] std::size_t level() const noexcept;
             [[nodiscard]] const std::vector<std::size_t>& neighbors(std::size_t level) const noexcept;
             void add_neighbor(std::size_t neighbor_id, std::size_t level) noexcept;
+            void replace_neighbors(std::vector<std::size_t> neighbors, std::size_t level);
 
 
         private:

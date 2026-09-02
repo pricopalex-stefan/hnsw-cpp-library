@@ -24,6 +24,14 @@ int main()
         decltype(node.data()),
         const hnsw::Vector&
         >, "node.data() should return const hnsw::Vector&");
+
+    node.add_neighbor(2, 0);
+    node.add_neighbor(3, 0);
+    assert(node.neighbors(0) == std::vector<std::size_t>({2, 3}));
+
+    std::vector<size_t> new_neighbors{3, 5};
+    node.replace_neighbors(std::move(new_neighbors), 0);
+    assert(node.neighbors(0) == std::vector<std::size_t>({3, 5}));
     
     return 0;
 }

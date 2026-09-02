@@ -60,7 +60,7 @@ namespace hnsw {
         /**
          * Explore the candidate neighbors and keep at most ef_construction results.
          * Candidates are explored from closest to farthest, while the result keeps
-         * the farthest current result at its top and the candidate the keeps the closest
+         * the farthest current result at its top and the candidate heap keeps the closest
          * on the top. Exploration stops when the closest candidate cannot improve
          * the result list. 
         */
@@ -97,19 +97,71 @@ namespace hnsw {
         return result_vector;
     }
 
+    template<Metric M>
+    std::vector<std::size_t> HnswIndex<M>::select_best_neighbors(
+        const Node& node,
+        const std::vector<std::size_t> &candidates,
+        std::size_t level
+    ) const
+    {
+        DistanceComparator comparatorMaxHeap{
+                node, this->nodes_, this->metric_, true
+        };
+
+        std::priority_queue<
+            std::size_t, 
+            std::vector<std::size_t>,                
+            DistanceComparator
+        > closest_neighbors(comparatorMaxHeap);
+
+        for(const std::size_t candidate_id : candidates) {
+            closest_neighbors.push(candidate_id);
+
+            if(closest_neighbors.size() > config_.M) {
+                closest_neighbors.pop();
+            }
+        }
+
+        for(const std::size_t neighbor_id : node.neighbors(level)) {
+            closest_neighbors.push(neighbor_id);
+
+            if(closest_neighbors.size() > config_.M) {
+                closest_neighbors.pop();
+            }
+        }
+
+        std::vector<std::size_t> selected;
+        while(!closest_neighbors.empty()) {
+            selected.push_back(closest_neighbors.top());
+            closest_neighbors.pop();
+        }
+
+        return selected;
+    }
+
     template <Metric M>
     void HnswIndex<M>::connect_neighbors(
         Node& node,
-        const std::vector<std::size_t>& neighbors,
-        std::size_t level
-    ) 
+        std::vector<std::size_t>& neighbors,
+        std::size_t level)
     {
-        const std::size_t neighbor_count = std::min(neighbors.size(), config_.M);
+        const std::vector<std::size_t> selected = 
+            select_best_neighbors(node, neighbors, level);
 
-        for(std::size_t i = 0; i < neighbor_count; i++) {
-            const std::size_t neighbor_id = neighbors[i];
-            node.add_neighbor(neighbor_id, level);
-            nodes_[neighbor_id].add_neighbor(node.id(), level);
+        node.replace_neighbors(selected, level);
+
+        // Bidirectional linking , every node keeping at most M nodes
+
+        for(const auto neighbor_id : selected) {
+
+            Node& neighbor_node = nodes_[neighbor_id];
+
+            neighbor_node.add_neighbor(node.id(), level);
+
+            std::vector<std::size_t> selected = 
+                select_best_neighbors(neighbor_node, std::vector<std::size_t>({node.id()}), level);
+
+            neighbor_node.replace_neighbors(std::move(selected), level);
         }
     }
 
@@ -128,13 +180,18 @@ namespace hnsw {
             global_entry_point_ = nodeToInsert.id();
             max_level_ = level_to_insert;
         } else {
+            nodes_.push_back(std::move(nodeToInsert));
+            Node& node = nodes_.back();
+
             std::size_t current_entry_point = *global_entry_point_;
 
+            const std::size_t start_level = std::min(level_to_insert, max_level_);
+
             // Perform greedy navigation through the upper levels.
-            for(std::size_t l = max_level_; l >= level_to_insert + 1; --l) {
-                float min_dist = metric_(nodes_[current_entry_point].data(), nodeToInsert.data());
+            for(std::size_t l = max_level_; l > level_to_insert; --l) {
+                float min_dist = metric_(nodes_[current_entry_point].data(), node.data());
                 for(std::size_t neighbor_id : nodes_[current_entry_point].neighbors(l)) {
-                    const float dist_neighbor = metric_(nodes_[neighbor_id].data(), nodeToInsert.data());
+                    const float dist_neighbor = metric_(nodes_[neighbor_id].data(), node.data());
                     if(dist_neighbor < min_dist) {
                         min_dist = dist_neighbor;
                         current_entry_point = neighbor_id;
@@ -144,14 +201,10 @@ namespace hnsw {
 
             // Search for candidate neighbors and connect to the node
             // at each level down to level 0
-            for(std::size_t l = level_to_insert;; --l) {
-                std::vector<std::size_t> closest_neighbors = search_layer(nodeToInsert, current_entry_point, l);
-                connect_neighbors(nodeToInsert, closest_neighbors, l);
-                
-                // Use the closest candidate as the entry point for the next level.
-                if(!closest_neighbors.empty()) {
-                    current_entry_point = closest_neighbors[0];
-                }
+            for(std::size_t l = start_level;; --l) {
+                std::vector<std::size_t> closest_neighbors = search_layer(node, current_entry_point, l);
+                connect_neighbors(node, closest_neighbors, l);
+
                 if(l == 0) {
                     break;
                 }
@@ -160,16 +213,14 @@ namespace hnsw {
             // If the new node has the highest level , make it the new global entry point
             if(max_level_ < level_to_insert) {
                 max_level_ = level_to_insert;
-                global_entry_point_ = nodeToInsert.id();
+                global_entry_point_ = node.id();
             }
-
-            nodes_.push_back(nodeToInsert);
         }
     }
 
     template<Metric M> 
     void HnswIndex<M>::add(const std::vector<Vector>& data) {
-        for(std::vector<Vector> vector : data) {
+        for(const Vector& vector : data) {
             this->add(vector);
         }
     }

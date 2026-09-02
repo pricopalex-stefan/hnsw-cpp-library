@@ -64,11 +64,46 @@ class HnswIndexTest {
 
             assert(index.nodes_.size() == 2);
         }
+
+        static void test_connect_neighbors()
+        {
+            hnsw::HnswConfig config{
+                .M = 2,
+                .ef_construction = 4,
+                .ef_search = 4
+            };
+
+            hnsw::HnswIndex<hnsw::EuclideanDistance> index(config);
+
+            index.add({0.0f, 0.0f});
+            index.add({1.0f, 0.0f});
+            index.add({0.0f, 1.0f});
+
+            assert(index.nodes_.size() == 3);
+
+            for(const auto& node : index.nodes_) {
+                for(const auto neighbor_id : node.neighbors(0)) {
+
+                    const auto& reverse_neighbors =
+                        index.nodes_[neighbor_id].neighbors(0);
+
+                    assert(
+                        std::ranges::find(reverse_neighbors, node.id())
+                         != reverse_neighbors.end()
+                    );
+                }
+            }
+
+            for(const auto& node : index.nodes_) {
+                assert(node.neighbors(0).size() <= config.M);
+            }
+        }
 };
 
 int main()
 {
     HnswIndexTest::test_search_layer();
     HnswIndexTest::test_add();
+    HnswIndexTest::test_connect_neighbors();
     return 0;
 }

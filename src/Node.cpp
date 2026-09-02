@@ -1,5 +1,6 @@
 #include <hnsw/Node.hpp>
 #include <utility>
+#include <queue>
 
 namespace hnsw {
 
@@ -35,5 +36,10 @@ namespace hnsw {
     void Node::add_neighbor(std::size_t neighbor_id, std::size_t level) noexcept
     {
         neighbors_[level].push_back(neighbor_id);
+    }
+
+    void Node::replace_neighbors(std::vector<std::size_t> neighbors, std::size_t level) 
+    {
+        neighbors_[level] = neighbors;
     }
 }
