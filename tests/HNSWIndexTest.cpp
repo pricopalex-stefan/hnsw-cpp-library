@@ -13,7 +13,7 @@ class HnswIndexTest {
             hnsw::HnswConfig config{
                 .M = 2,
                 .ef_construction = 2,
-                .ef_search = 2
+                .ef_search = 2,
             };
             hnsw::HnswIndex<hnsw::EuclideanDistance> index(config);
 
@@ -37,9 +37,9 @@ class HnswIndexTest {
 
             query.add_neighbor(0, level);
 
-            index.nodes_ = nodes;
+            index.nodes_ = std::move(nodes);
             index.global_entry_point_ = 0;
-            auto neighbors = index.search_layer(query, *index.global_entry_point_, level);
+            auto neighbors = index.search_layer(query, *index.global_entry_point_, level, index.config_.ef_construction);
             
             assert(neighbors.size() == config.ef_construction);
             assert(neighbors[0] == 3);
@@ -50,7 +50,7 @@ class HnswIndexTest {
             hnsw::HnswConfig config{
                 .M = 2,
                 .ef_construction = 2,
-                .ef_search = 2
+                .ef_search = 2,
             };
             hnsw::HnswIndex<hnsw::EuclideanDistance> index(config);
 
@@ -70,7 +70,7 @@ class HnswIndexTest {
             hnsw::HnswConfig config{
                 .M = 2,
                 .ef_construction = 4,
-                .ef_search = 4
+                .ef_search = 4,
             };
 
             hnsw::HnswIndex<hnsw::EuclideanDistance> index(config);
@@ -98,12 +98,34 @@ class HnswIndexTest {
                 assert(node.neighbors(0).size() <= config.M);
             }
         }
-};
+
+        static void test_search()
+        {
+            hnsw::HnswConfig config{
+                .M = 2,
+                .ef_construction = 4,
+                .ef_search = 4,
+            };
+
+            hnsw::HnswIndex<hnsw::EuclideanDistance> index(config);
+
+            index.add({0.0f, 0.0f}); // 0
+            index.add({1.0f, 0.0f}); // 1
+            index.add({0.0f, 1.0f}); // 2
+            index.add({1.5f, 1.5f}); // 3
+
+            const auto result = index.search({1.5f, 1.5f}, 1);
+
+            assert(result.size() == 1);
+            assert(result[0] == 3);
+        }
+        };
 
 int main()
 {
     HnswIndexTest::test_search_layer();
     HnswIndexTest::test_add();
     HnswIndexTest::test_connect_neighbors();
+    HnswIndexTest::test_search();
     return 0;
 }

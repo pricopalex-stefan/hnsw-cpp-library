@@ -82,11 +82,16 @@ namespace hnsw {
                     return max_heap ? dist_a < dist_b : dist_a > dist_b;
                 }
             };
-
+            
+            /**
+             * @brief Samples a random layer for a newly inserted node.
+             *
+             * @return The randomly sampled maximum layer.
+             */
             std::size_t random_layer();
 
             /**
-             * @brief Searches for closest nodes at a specified level.
+             * @brief Searches for nearest nodes at a specified level.
              * 
              * @param node The query node.
              * @param entry_point The entry_point for that level.
@@ -96,19 +101,44 @@ namespace hnsw {
             std::vector<std::size_t> search_layer(
                 const Node& node,
                 std::size_t entry_point,
-                std::size_t level
+                std::size_t level,
+                std::size_t ef
             ) const;
 
+            /**
+             * @brief Selects the best M neighbors from the 
+             * given candidate and node's neighbor list.
+             */
             [[nodiscard]]
             std::vector<std::size_t> select_best_neighbors(
                 const Node& node,
                 const std::vector<std::size_t> &candidates,
-                std::size_t
+                std::size_t level
             ) const;
+
+            /**
+             * @brief Replaces node's neighbor list with the best ones.
+             * 
+             * @param node The candidate node.
+             * @param candidates The candidates for neighbors.
+             * @param level The graph level at which the neighbors are pruned.
+             */
+            void prune_neighbors(
+                Node& node,
+                const std::vector<std::size_t> &candidates,
+                std::size_t level
+            );
             
+            /**
+             * @brief Connects the node to the specified neighbors at a given level.
+             *
+             * @param node The node to connect.
+             * @param neighbors The neighbors to connect to.
+             * @param level The graph level at which the connections are created.
+             */
             void connect_neighbors(
                 Node& node,
-                std::vector<std::size_t>& neighbors,
+                const std::vector<std::size_t>& neighbors,
                 std::size_t level
             );
     };

@@ -16,6 +16,7 @@ namespace hnsw {
 
     }
 
+    // Sample nodes highest layer by using exponential distribution
     template <Metric M>
     std::size_t HnswIndex<M>::random_layer()
     {
@@ -30,14 +31,15 @@ namespace hnsw {
     std::vector<std::size_t> HnswIndex<M>::search_layer(
         const Node& node,
         std::size_t entry_point,
-        std::size_t level
+        std::size_t level,
+        std::size_t ef /*.ef_construction or .ef_search*/
     ) const
     {
         DistanceComparator comparatorMaxHeap{
-            node, this->nodes_, this->metric_, true
+            node, this->nodes_, this->metric_, true,
         };
         DistanceComparator comparatorMinHeap{
-            node, this->nodes_, this->metric_, false
+            node, this->nodes_, this->metric_, false,
         };
 
         std::priority_queue<
@@ -58,7 +60,7 @@ namespace hnsw {
         visited.insert(entry_point);
 
         /**
-         * Explore the candidate neighbors and keep at most ef_construction results.
+         * Explore the candidate neighbors and keep at most ef results.
          * Candidates are explored from closest to farthest, while the result keeps
          * the farthest current result at its top and the candidate heap keeps the closest
          * on the top. Exploration stops when the closest candidate cannot improve
@@ -69,7 +71,8 @@ namespace hnsw {
 
             const float best_candidate_distance = metric_(node.data(), nodes_[candidates.top()].data());
             const float worst_result_distance = metric_(node.data(), nodes_[result.top()].data());
-            if(best_candidate_distance > worst_result_distance) {break;}
+            if(result.size() >= ef &&
+                best_candidate_distance > worst_result_distance) {break;}
 
             std::size_t candidate_id = candidates.top();
             candidates.pop();
@@ -77,7 +80,7 @@ namespace hnsw {
                 // Process each node only once.
                 if(visited.insert(neighbor_id).second) {
                     candidates.push(neighbor_id);
-                    if(result.size() < config_.ef_construction) {
+                    if(result.size() < ef) {
                         result.push(neighbor_id);
                     } else if(metric_(node.data(), nodes_[neighbor_id].data())
                         < metric_(node.data(), nodes_[result.top()].data())) {
@@ -97,6 +100,10 @@ namespace hnsw {
         return result_vector;
     }
 
+    /**
+     * Select best neighbors by storing all current neighbors 
+     * and candidates in max heap and selecting a maximum of M.
+     */
     template<Metric M>
     std::vector<std::size_t> HnswIndex<M>::select_best_neighbors(
         const Node& node,
@@ -105,7 +112,7 @@ namespace hnsw {
     ) const
     {
         DistanceComparator comparatorMaxHeap{
-                node, this->nodes_, this->metric_, true
+                node, this->nodes_, this->metric_, true,
         };
 
         std::priority_queue<
@@ -139,29 +146,37 @@ namespace hnsw {
         return selected;
     }
 
+    template<Metric M>
+    void HnswIndex<M>::prune_neighbors(
+        Node& node,
+        const std::vector<std::size_t> &candidates,
+        std::size_t level
+    )
+    {
+        std::vector<std::size_t> selected = 
+                select_best_neighbors(node, candidates, level);
+
+        node.replace_neighbors(std::move(selected), level);
+    }
+
     template <Metric M>
     void HnswIndex<M>::connect_neighbors(
         Node& node,
-        std::vector<std::size_t>& neighbors,
-        std::size_t level)
+        const std::vector<std::size_t>& neighbors,
+        std::size_t level
+    )
     {
-        const std::vector<std::size_t> selected = 
-            select_best_neighbors(node, neighbors, level);
-
-        node.replace_neighbors(selected, level);
+        prune_neighbors(node, neighbors, level);
 
         // Bidirectional linking , every node keeping at most M nodes
 
-        for(const auto neighbor_id : selected) {
+        for(const auto neighbor_id : node.neighbors(level)) {
 
             Node& neighbor_node = nodes_[neighbor_id];
 
             neighbor_node.add_neighbor(node.id(), level);
 
-            std::vector<std::size_t> selected = 
-                select_best_neighbors(neighbor_node, std::vector<std::size_t>({node.id()}), level);
-
-            neighbor_node.replace_neighbors(std::move(selected), level);
+            prune_neighbors(neighbor_node, std::vector<std::size_t>{node.id()}, level);
         }
     }
 
@@ -189,8 +204,11 @@ namespace hnsw {
 
             // Perform greedy navigation through the upper levels.
             for(std::size_t l = max_level_; l > level_to_insert; --l) {
+
                 float min_dist = metric_(nodes_[current_entry_point].data(), node.data());
+        
                 for(std::size_t neighbor_id : nodes_[current_entry_point].neighbors(l)) {
+
                     const float dist_neighbor = metric_(nodes_[neighbor_id].data(), node.data());
                     if(dist_neighbor < min_dist) {
                         min_dist = dist_neighbor;
@@ -201,11 +219,11 @@ namespace hnsw {
 
             // Search for candidate neighbors and connect to the node
             // at each level down to level 0
-            for(std::size_t l = start_level;; --l) {
-                std::vector<std::size_t> closest_neighbors = search_layer(node, current_entry_point, l);
-                connect_neighbors(node, closest_neighbors, l);
+            for(std::size_t level = start_level;; --level) {
+                std::vector<std::size_t> closest_neighbors = search_layer(node, current_entry_point, level, config_.ef_construction);
+                connect_neighbors(node, closest_neighbors, level);
 
-                if(l == 0) {
+                if(level == 0) {
                     break;
                 }
             }
@@ -223,5 +241,74 @@ namespace hnsw {
         for(const Vector& vector : data) {
             this->add(vector);
         }
+    }
+
+    template<Metric M>
+    std::vector<std::size_t> HnswIndex<M>::search(
+                const Vector& query,
+                std::size_t k
+    ) const
+    {
+        if(!global_entry_point_.has_value() || k == 0) {
+            return {};
+        }
+        std::vector<std::size_t> candidates;
+        std::size_t current_entry_point = *global_entry_point_;
+        Node query_node(
+            nodes_.size(),
+            query,
+            0
+        );
+
+        // Perform greedy search until level 0.
+        for(std::size_t level = max_level_; level > 0; --level) {
+
+            while(true) {
+                const float min_dist =
+                    metric_(nodes_[current_entry_point].data(), query);
+
+                std::size_t best_neighbor = current_entry_point;
+                float best_dist = min_dist;
+
+                for(const std::size_t neighbor_id :
+                    nodes_[current_entry_point].neighbors(level)) {
+
+                    const float neighbor_dist =
+                        metric_(
+                            nodes_[neighbor_id].data(),
+                            query
+                        );
+
+                    if(neighbor_dist < best_dist) {
+                        best_neighbor = neighbor_id;
+                        best_dist = neighbor_dist;
+                    }
+                }
+
+                if(best_neighbor == current_entry_point) {
+                    break;
+                }
+
+                current_entry_point = best_neighbor;
+            }
+        }
+
+        // Perform layer search at layer 0.
+        candidates = search_layer(
+            query_node,
+            current_entry_point,
+            0,
+            config_.ef_search
+        );
+
+        const std::size_t result_count = std::min(candidates.size(), k);
+
+        const auto candidates_end = 
+            candidates.begin() + static_cast<std::ptrdiff_t>(result_count);
+
+        return {
+            candidates.begin(),
+            candidates_end
+        };
     }
 }
