@@ -1,6 +1,5 @@
 #include <utility>
 #include <queue>
-#include <unordered_set>
 #include <algorithm>
 
 namespace hnsw {
@@ -53,11 +52,11 @@ namespace hnsw {
             DistanceComparator
         > result(comparatorMaxHeap);
         
-        std::unordered_set<std::size_t> visited;
+        std::vector<std::size_t> visited(nodes_.size(), 0);
 
         candidates.push(entry_point);
         result.push(entry_point);
-        visited.insert(entry_point);
+        visited[entry_point] = 1;
 
         /**
          * Explore the candidate neighbors and keep at most ef results.
@@ -78,7 +77,8 @@ namespace hnsw {
             candidates.pop();
             for(const std::size_t neighbor_id : nodes_[candidate_id].neighbors(level)) {
                 // Process each node only once.
-                if(visited.insert(neighbor_id).second) {
+                if(visited[neighbor_id] == 0) {
+                    visited[neighbor_id] = 1;
                     candidates.push(neighbor_id);
                     if(result.size() < ef) {
                         result.push(neighbor_id);
