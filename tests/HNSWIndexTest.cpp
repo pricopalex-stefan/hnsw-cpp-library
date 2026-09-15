@@ -119,7 +119,7 @@ class HnswIndexTest {
             assert(result.size() == 1);
             assert(result[0] == 3);
         }
-        };
+};
 
 int main()
 {

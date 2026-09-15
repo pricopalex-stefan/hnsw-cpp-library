@@ -29,6 +29,17 @@ target_include_directories(hnsw
         ${PROJECT_SOURCE_DIR}/include
 )
 
+add_executable(recall_benchmark
+    benchmarks/RecallBenchmark.cpp
+    src/Node.cpp
+    src/HnswBruteIndex.cpp
+)
+
+target_link_libraries(recall_benchmark
+    PRIVATE
+        hnsw
+)
+
 add_executable(node_test
     tests/NodeTest.cpp
     src/Node.cpp
