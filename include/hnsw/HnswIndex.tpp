@@ -146,6 +146,78 @@ namespace hnsw {
         return selected;
     }
 
+    /**
+    * Select best neighbors that are closer to 
+    * node than any node in the result that 
+    * favours geometric diversity creating 
+    * more global connections.
+    */
+    template<Metric M>
+    std::vector<std::size_t> HnswIndex<M>::select_best_neighbors_heuristic(
+        const Node& node,
+        const std::vector<std::size_t> &candidates,
+        std::size_t level
+    ) const 
+    {
+        DistanceComparator comparatorMaxHeap{
+                node, this->nodes_, this->metric_, false,
+        };
+
+        std::priority_queue<
+            std::size_t, 
+            std::vector<std::size_t>,                
+            DistanceComparator
+        > candidates_queue(comparatorMaxHeap);
+
+        std::priority_queue<
+            std::size_t, 
+            std::vector<std::size_t>,                
+            DistanceComparator
+        > candidates_discarded(comparatorMaxHeap);
+
+        std::vector<std::size_t> result;
+
+
+        for(std::size_t neighbors_id : node.neighbors(level)) {
+            candidates_queue.push(neighbors_id);
+        }
+
+        for(std::size_t candidates_id : candidates) {
+            candidates_queue.push(candidates_id);
+        }
+
+        while(!candidates_queue.empty() && result.size() < config_.M) {
+            const std::size_t best_candidate_id = candidates_queue.top();
+            candidates_queue.pop();
+            const float distance_to_q = metric_(nodes_[best_candidate_id].data(), node.data());
+
+            bool add_to_result = true;
+
+            for(std::size_t result_node_id : result) {
+                const float distance_to_r = metric_(nodes_[best_candidate_id].data(), nodes_[result_node_id].data());
+                // Reject the candidate if it is closer to an already chosen node
+                // than it is to the query node
+                if(distance_to_q >= distance_to_r) {
+                    add_to_result = false;
+                    candidates_discarded.push(best_candidate_id);
+                    break;
+                }
+            }
+
+            if(add_to_result) {
+                result.push_back(best_candidate_id);
+            }
+        }
+
+        // Add the remaining candidates nodes to result
+        while(!candidates_discarded.empty() && result.size() < config_.M) {
+            result.push_back(candidates_discarded.top());
+            candidates_discarded.pop();
+        }
+
+        return result;
+    }
+
     template<Metric M>
     void HnswIndex<M>::prune_neighbors(
         Node& node,
@@ -154,7 +226,7 @@ namespace hnsw {
     )
     {
         std::vector<std::size_t> selected = 
-                select_best_neighbors(node, candidates, level);
+                select_best_neighbors_heuristic(node, candidates, level);
 
         node.replace_neighbors(std::move(selected), level);
     }

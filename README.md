@@ -31,11 +31,11 @@ efConstruction: 200
 
 efSearch    Recall@K       Brute (ms/query)    HNSW (ms/query)
 -------------------------------------------------------------------
-10          0.5873         9.0411              0.4394
-20          0.7483         9.0487              0.5701
-50          0.9067         9.0569              0.9606
-100         0.9660         9.0451              1.5963
-200         0.9871         9.0659              2.7731
+10          0.7497         8.9800              0.2279
+20          0.8822         9.1369              0.3952
+50          0.9798         9.1732              0.8344
+100         0.9979         9.1937              1.5432
+200         0.9998         9.1741              2.8764
 ```
 
 As expected, increasing `efSearch` improves recall at the cost of search time.
@@ -43,9 +43,9 @@ As expected, increasing `efSearch` improves recall at the cost of search time.
 For example, with `efSearch = 100`:
 
 ```text
-Recall@10:        0.9660
-Brute force:      9.0451 ms/query
-HNSW:             1.5963 ms/query
+Recall@10:        0.9979
+Brute force:      9.1937 ms/query
+HNSW:             1.5432 ms/query
 ```
 
 ## Roadmap
@@ -97,4 +97,8 @@ C++
 ```
 
 The benchmark will be extended as new optimizations are introduced, allowing the performance impact of each change to be measured.
+
+## References
+
+[1] Yu. A. Malkov and D. A. Yashunin, "Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs."
 

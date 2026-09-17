@@ -1,6 +1,7 @@
 #include <hnsw/HnswBruteIndex.hpp>
 #include <hnsw/EuclideanDistance.hpp>
 
+#include <algorithm>
 #include <queue>
 
 namespace hnsw {

@@ -117,6 +117,17 @@ namespace hnsw {
             ) const;
 
             /**
+             * @brief Selects the best M neighbors using a heuristic from the
+             * given candidate list and the node's existing neighbors.
+             */
+            [[nodiscard]]
+            std::vector<std::size_t> select_best_neighbors_heuristic(
+                const Node& node,
+                const std::vector<std::size_t> &candidates,
+                std::size_t level
+            ) const;
+
+            /**
              * @brief Replaces node's neighbor list with the best ones.
              * 
              * @param node The candidate node.
