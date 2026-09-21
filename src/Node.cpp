@@ -40,6 +40,6 @@ namespace hnsw {
 
     void Node::replace_neighbors(std::vector<std::size_t> neighbors, std::size_t level) 
     {
-        neighbors_[level] = neighbors;
+        neighbors_[level] = std::move(neighbors);
     }
 }

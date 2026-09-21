@@ -30,7 +30,7 @@ int main()
     assert(node.neighbors(0) == std::vector<std::size_t>({2, 3}));
 
     std::vector<size_t> new_neighbors{3, 5};
-    node.replace_neighbors(std::move(new_neighbors), 0);
+    node.replace_neighbors(new_neighbors, 0);
     assert(node.neighbors(0) == std::vector<std::size_t>({3, 5}));
     
     return 0;

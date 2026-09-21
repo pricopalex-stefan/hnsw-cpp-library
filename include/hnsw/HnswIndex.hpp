@@ -68,6 +68,17 @@ namespace hnsw {
             std::vector<Node> nodes_;
             std::mt19937 rng_;
 
+            mutable std::vector<uint32_t> visited_;
+            mutable uint32_t generation_tag_;
+
+            void mark_visited(std::size_t index) const noexcept {
+                visited_[index] = generation_tag_;
+            }
+
+            bool is_visited(std::size_t index) const noexcept {
+                return visited_[index] == generation_tag_;
+            }
+
             struct DistanceComparator {
                 const Node& query_node;
                 const std::vector<Node>& nodes;

@@ -1,6 +1,7 @@
 #include <utility>
 #include <queue>
 #include <algorithm>
+#include <cstddef>
 
 namespace hnsw {
 
@@ -12,7 +13,8 @@ namespace hnsw {
       rng_(std::random_device{}()),
       level_multiplier_(1.0 / std::log(1.0 * config_.M))
     {
-
+        std::ranges::fill(visited_, 0);
+        generation_tag_ = 1;
     }
 
     // Sample nodes highest layer by using exponential distribution
@@ -51,12 +53,17 @@ namespace hnsw {
             std::vector<std::size_t>, 
             DistanceComparator
         > result(comparatorMaxHeap);
-        
-        std::vector<std::size_t> visited(nodes_.size(), 0);
 
         candidates.push(entry_point);
         result.push(entry_point);
-        visited[entry_point] = 1;
+
+        generation_tag_++;
+
+        // Overflow
+        if(generation_tag_ == 0) {
+            std::ranges::fill(visited_, 0);
+            generation_tag_ = 1;
+        }
 
         /**
          * Explore the candidate neighbors and keep at most ef results.
@@ -77,8 +84,8 @@ namespace hnsw {
             candidates.pop();
             for(const std::size_t neighbor_id : nodes_[candidate_id].neighbors(level)) {
                 // Process each node only once.
-                if(visited[neighbor_id] == 0) {
-                    visited[neighbor_id] = 1;
+                if(!is_visited(neighbor_id)) {
+                    mark_visited(neighbor_id);
                     candidates.push(neighbor_id);
                     if(result.size() < ef) {
                         result.push(neighbor_id);
@@ -228,7 +235,7 @@ namespace hnsw {
         std::vector<std::size_t> selected = 
                 select_best_neighbors_heuristic(node, candidates, level);
 
-        node.replace_neighbors(std::move(selected), level);
+        node.replace_neighbors(selected, level);
     }
 
     template <Metric M>
@@ -264,10 +271,12 @@ namespace hnsw {
         */
         if(!global_entry_point_) {
             nodes_.push_back(nodeToInsert);
+            visited_.push_back(0);
             global_entry_point_ = nodeToInsert.id();
             max_level_ = level_to_insert;
         } else {
             nodes_.push_back(std::move(nodeToInsert));
+            visited_.push_back(0);
             Node& node = nodes_.back();
 
             std::size_t current_entry_point = *global_entry_point_;
