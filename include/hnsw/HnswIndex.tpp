@@ -36,26 +36,31 @@ namespace hnsw {
         std::size_t ef /*.ef_construction or .ef_search*/
     ) const
     {
-        DistanceComparator comparatorMaxHeap{
-            node, this->nodes_, this->metric_, true,
-        };
-        DistanceComparator comparatorMinHeap{
-            node, this->nodes_, this->metric_, false,
-        };
+
+        auto max_compare = [](std::pair<std::size_t, float> left, 
+            std::pair<std::size_t, float> right) {
+                return left.second > right.second;
+            };
+
+        auto min_compare = [](std::pair<std::size_t, float> left, 
+            std::pair<std::size_t, float> right) {
+                return left.second < right.second;
+            };
 
         std::priority_queue<
-            std::size_t, std::vector<std::size_t>, 
-            DistanceComparator
-        > candidates(comparatorMinHeap);
+            std::pair<std::size_t, float>,
+            std::vector<std::pair<std::size_t, float>>, 
+            decltype(max_compare)
+        > candidates(max_compare);
 
         std::priority_queue<
-            std::size_t, 
-            std::vector<std::size_t>, 
-            DistanceComparator
-        > result(comparatorMaxHeap);
+            std::pair<std::size_t, float>, 
+            std::vector<std::pair<std::size_t, float>>,
+            decltype(min_compare)
+        > result(min_compare);
 
-        candidates.push(entry_point);
-        result.push(entry_point);
+        candidates.emplace(entry_point, metric_(node.data(), nodes_[entry_point].data()));
+        result.emplace(entry_point, metric_(node.data(), nodes_[entry_point].data()));
 
         generation_tag_++;
 
@@ -75,24 +80,24 @@ namespace hnsw {
 
         while(!candidates.empty() && !result.empty()) {
 
-            const float best_candidate_distance = metric_(node.data(), nodes_[candidates.top()].data());
-            const float worst_result_distance = metric_(node.data(), nodes_[result.top()].data());
+            const float best_candidate_distance = candidates.top().second;
+            const float worst_result_distance = result.top().second;
             if(result.size() >= ef &&
                 best_candidate_distance > worst_result_distance) {break;}
 
-            std::size_t candidate_id = candidates.top();
+            std::size_t candidate_id = candidates.top().first;
             candidates.pop();
             for(const std::size_t neighbor_id : nodes_[candidate_id].neighbors(level)) {
                 // Process each node only once.
                 if(!is_visited(neighbor_id)) {
                     mark_visited(neighbor_id);
-                    candidates.push(neighbor_id);
+                    candidates.emplace(neighbor_id, metric_(node.data(), nodes_[neighbor_id].data()));
                     if(result.size() < ef) {
-                        result.push(neighbor_id);
+                        result.emplace(neighbor_id, metric_(node.data(), nodes_[neighbor_id].data()));
                     } else if(metric_(node.data(), nodes_[neighbor_id].data())
-                        < metric_(node.data(), nodes_[result.top()].data())) {
+                        < result.top().second) {
                         result.pop();
-                        result.push(neighbor_id);
+                        result.emplace(neighbor_id, metric_(node.data(), nodes_[neighbor_id].data()));
                     }
                 }
             }
@@ -100,7 +105,7 @@ namespace hnsw {
 
         std::vector<std::size_t> result_vector;
         while(!result.empty()) {
-            result_vector.push_back(result.top());
+            result_vector.push_back(result.top().first);
             result.pop();
         }
         std::ranges::reverse(result_vector);
@@ -118,18 +123,19 @@ namespace hnsw {
         std::size_t level
     ) const
     {
-        DistanceComparator comparatorMaxHeap{
-                node, this->nodes_, this->metric_, true,
-        };
+            auto max_compare = [](std::pair<std::size_t, float> left, 
+                std::pair<std::size_t, float> right) {
+                    return left.second > right.second;
+                };
 
         std::priority_queue<
-            std::size_t, 
-            std::vector<std::size_t>,                
-            DistanceComparator
-        > closest_neighbors(comparatorMaxHeap);
+            std::pair<std::size_t, float>,
+            std::vector<std::pair<std::size_t, float>>,                
+            decltype(max_compare)
+        > closest_neighbors(max_compare);
 
         for(const std::size_t candidate_id : candidates) {
-            closest_neighbors.push(candidate_id);
+            closest_neighbors.emplace(candidate_id, metric_(node.data(), nodes_[candidate_id].data()));
 
             if(closest_neighbors.size() > config_.M) {
                 closest_neighbors.pop();
@@ -137,7 +143,7 @@ namespace hnsw {
         }
 
         for(const std::size_t neighbor_id : node.neighbors(level)) {
-            closest_neighbors.push(neighbor_id);
+            closest_neighbors.emplace(neighbor_id, metric_(node.data(), nodes_[neighbor_id].data()));
 
             if(closest_neighbors.size() > config_.M) {
                 closest_neighbors.pop();
@@ -146,7 +152,7 @@ namespace hnsw {
 
         std::vector<std::size_t> selected;
         while(!closest_neighbors.empty()) {
-            selected.push_back(closest_neighbors.top());
+            selected.push_back(closest_neighbors.top().first);
             closest_neighbors.pop();
         }
 
@@ -166,37 +172,38 @@ namespace hnsw {
         std::size_t level
     ) const 
     {
-        DistanceComparator comparatorMaxHeap{
-                node, this->nodes_, this->metric_, false,
-        };
+        auto max_compare = [](std::pair<std::size_t, float> left, 
+            std::pair<std::size_t, float> right) {
+                return left.second > right.second;
+            };
 
         std::priority_queue<
-            std::size_t, 
-            std::vector<std::size_t>,                
-            DistanceComparator
-        > candidates_queue(comparatorMaxHeap);
+            std::pair<std::size_t, float>, 
+            std::vector<std::pair<std::size_t, float>>,                
+            decltype(max_compare)
+        > candidates_queue(max_compare);
 
         std::priority_queue<
-            std::size_t, 
-            std::vector<std::size_t>,                
-            DistanceComparator
-        > candidates_discarded(comparatorMaxHeap);
+            std::pair<std::size_t, float>, 
+            std::vector<std::pair<std::size_t, float>>,                
+            decltype(max_compare)
+        > candidates_discarded(max_compare);
 
         std::vector<std::size_t> result;
 
 
         for(std::size_t neighbors_id : node.neighbors(level)) {
-            candidates_queue.push(neighbors_id);
+            candidates_queue.emplace(neighbors_id, metric_(node.data(), nodes_[neighbors_id].data()));
         }
 
         for(std::size_t candidates_id : candidates) {
-            candidates_queue.push(candidates_id);
+            candidates_queue.emplace(candidates_id, metric_(node.data(), nodes_[candidates_id].data()));
         }
 
         while(!candidates_queue.empty() && result.size() < config_.M) {
-            const std::size_t best_candidate_id = candidates_queue.top();
+            const std::size_t best_candidate_id = candidates_queue.top().first;
+            const float distance_to_q = candidates_queue.top().second;
             candidates_queue.pop();
-            const float distance_to_q = metric_(nodes_[best_candidate_id].data(), node.data());
 
             bool add_to_result = true;
 
@@ -206,7 +213,7 @@ namespace hnsw {
                 // than it is to the query node
                 if(distance_to_q >= distance_to_r) {
                     add_to_result = false;
-                    candidates_discarded.push(best_candidate_id);
+                    candidates_discarded.emplace(best_candidate_id, distance_to_q);
                     break;
                 }
             }
@@ -218,7 +225,7 @@ namespace hnsw {
 
         // Add the remaining candidates nodes to result
         while(!candidates_discarded.empty() && result.size() < config_.M) {
-            result.push_back(candidates_discarded.top());
+            result.push_back(candidates_discarded.top().first);
             candidates_discarded.pop();
         }
 

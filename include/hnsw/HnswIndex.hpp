@@ -78,21 +78,6 @@ namespace hnsw {
             bool is_visited(std::size_t index) const noexcept {
                 return visited_[index] == generation_tag_;
             }
-
-            struct DistanceComparator {
-                const Node& query_node;
-                const std::vector<Node>& nodes;
-                const M& metric;
-                bool max_heap;
-
-                bool operator()(std::size_t index_a, std::size_t index_b) const {
-                    const auto dist_a = metric(query_node.data(), nodes[index_a].data());
-                    const auto dist_b = metric(query_node.data(), nodes[index_b].data());
-                    // For max_heap the farthest node has the highest priority.
-                    // For min-heap the closest node has the highest priority.
-                    return max_heap ? dist_a < dist_b : dist_a > dist_b;
-                }
-            };
             
             /**
              * @brief Samples a random layer for a newly inserted node.
