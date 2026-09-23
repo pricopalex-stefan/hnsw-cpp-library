@@ -1,7 +1,7 @@
 #pragma once
 
-#include <hnsw/Vector.hpp>
-#include <hnsw/Node.hpp>
+#include <hnsw/detail/Vector.hpp>
+#include <hnsw/detail/Node.hpp>
 
 namespace hnsw {
     class HnswBruteIndex {

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <hnsw/Node.hpp>
-#include <hnsw/Metric.hpp>
-#include <hnsw/HnswConfig.hpp>
+#include <hnsw/detail/Node.hpp>
+#include <hnsw/detail/Metric.hpp>
+#include <hnsw/detail/HnswConfig.hpp>
 
 #include <vector>
 #include <optional>

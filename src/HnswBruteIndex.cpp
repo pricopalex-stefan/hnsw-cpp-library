@@ -1,5 +1,5 @@
 #include <hnsw/HnswBruteIndex.hpp>
-#include <hnsw/EuclideanDistance.hpp>
+#include <hnsw/detail/EuclideanDistance.hpp>
 
 #include <algorithm>
 #include <queue>

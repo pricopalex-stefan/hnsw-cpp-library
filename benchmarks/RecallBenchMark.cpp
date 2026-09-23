@@ -1,6 +1,7 @@
 #include <hnsw/HnswIndex.hpp>
 #include <hnsw/HnswBruteIndex.hpp>
-#include <hnsw/EuclideanDistance.hpp>
+#include <hnsw/detail/EuclideanDistance.hpp>
+#include <hnsw/detail/CpuFeatures.hpp>
 #include "Recall.hpp"
 
 #include <algorithm>
@@ -68,6 +69,11 @@ int main()
             brute_index.search(query, K)
         );
     }
+
+    std::cout << "Vendor: " << cpu_features::InstructionSet::Vendor() << "\n";
+    std::cout << "Brand: " << cpu_features::InstructionSet::Brand() << "\n";
+    std::cout << "AVX supported:  " << cpu_features::InstructionSet::AVX2() << "\n";
+    std::cout << "FMA supported:  " << cpu_features::InstructionSet::FMA() << "\n";
 
     std::cout << std::fixed << std::setprecision(4);
 

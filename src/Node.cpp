@@ -1,4 +1,4 @@
-#include <hnsw/Node.hpp>
+#include <hnsw/detail/Node.hpp>
 #include <utility>
 #include <queue>
 

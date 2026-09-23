@@ -1,6 +1,6 @@
 #pragma once
 
-#include <hnsw/Vector.hpp>
+#include <detail/Vector.hpp>
 
 namespace hnsw {
     class DotProductDistance final {
