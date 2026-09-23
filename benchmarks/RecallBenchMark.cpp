@@ -73,6 +73,7 @@ int main()
     std::cout << "Vendor: " << cpu_features::InstructionSet::Vendor() << "\n";
     std::cout << "Brand: " << cpu_features::InstructionSet::Brand() << "\n";
     std::cout << "AVX supported:  " << cpu_features::InstructionSet::AVX2() << "\n";
+    std::cout << "AVX512f supported:  " << cpu_features::InstructionSet::AVX512F() << "\n";
     std::cout << "FMA supported:  " << cpu_features::InstructionSet::FMA() << "\n";
 
     std::cout << std::fixed << std::setprecision(4);

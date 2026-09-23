@@ -5,16 +5,20 @@
 #include <vector>
 #include <array>
 
+#if defined(__clang__) || defined(__GNUC__) || defined(__GNUG__) || defined(_MSC_VER)
+    #include <intrin.h>
+    #define HAS_CPUID_INTRIN 1
+#endif
+
 namespace cpu_features {
 
 class InstructionSet {
 
-#if defined(__clang__) || defined(__GNUC__) || defined(__GNUG__) || defined(_MSC_VER)
-        #include <intrin.h>
-
     private:
 
         class InstructionSet_Internal {
+
+#if HAS_CPUID_INTRIN
         
         public:
             InstructionSet_Internal() 
@@ -99,22 +103,45 @@ class InstructionSet {
             std::bitset<32> f_7_ECX_;
             std::vector<std::array<int, 4>> data_;
             std::vector<std::array<int, 4>> extdata_;
+        
+        #endif
+
         };
 
-        static const InstructionSet_Internal CPU_Rep;
+        inline static const InstructionSet_Internal CPU_Rep{};
 
         public:
-            static std::string Vendor() { return CPU_Rep.vendor_; }
-            static std::string Brand() { return CPU_Rep.brand_; }
+            static std::string Vendor() { 
+                #ifdef HAS_CPUID_INTRIN
+                    return CPU_Rep.vendor_; 
+                #endif
+                return "";
+            }
+            static std::string Brand() { 
+                #ifdef HAS_CPUID_INTRIN
+                    return CPU_Rep.brand_; 
+                #endif
+                return "";
+            }
 
-            static bool FMA() { 
-                return CPU_Rep.f_1_ECX_[12]; 
+            static bool FMA() {
+                #ifdef HAS_CPUID_INTRIN
+                    return CPU_Rep.f_1_ECX_[12]; 
+                #endif
+                return false;
             }
             static bool AVX2() { 
-                return CPU_Rep.f_7_EBX_[5]; 
+                #ifdef HAS_CPUID_INTRIN
+                    return CPU_Rep.f_7_EBX_[5]; 
+                #endif
+                return false;
             }
-#endif
+             static bool AVX512F() { 
+                #ifdef HAS_CPUID_INTRIN
+                    return CPU_Rep.f_7_EBX_[16]; 
+                #endif
+                return false;
+            }
+
     };
-    // Initialize static member data
-    const InstructionSet::InstructionSet_Internal InstructionSet::CPU_Rep;
 }
