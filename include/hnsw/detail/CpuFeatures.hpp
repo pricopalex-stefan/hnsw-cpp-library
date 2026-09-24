@@ -86,12 +86,11 @@ class InstructionSet {
                     }
 
                     // Capture vendor string
-                    char vendor[32];
-                    memset(vendor, 0, sizeof(vendor));
-                    *reinterpret_cast<int*>(vendor) = data_[0][1];
-                    *reinterpret_cast<int*>(vendor + 4) = data_[0][3];
-                    *reinterpret_cast<int*>(vendor + 8) = data_[0][2];
-                    vendor_ = vendor;
+                    std::array<char, 32> vendor{};
+                    std::memcpy(vendor.data(), &data_[0][1], sizeof(int));
+                    std::memcpy(vendor.data() + 4, &data_[0][3], sizeof(int));
+                    std::memcpy(vendor.data() + 8, &data_[0][2], sizeof(int));
+                    vendor_ = vendor.data();
 
                     if (vendor_ == "GenuineIntel") {
                         isIntel_ = true;
@@ -117,8 +116,7 @@ class InstructionSet {
                     cpuid(cpui, 0x80000000);
                     nExIds_ = cpui[0];
 
-                    char brand[64];
-                    memset(brand, 0, sizeof(brand));
+                    std::array<char, 64> brand{};
                     
                     for (int i = 0x80000000; i <= nExIds_; ++i) {
                         cpuid(cpui, i);
@@ -128,10 +126,10 @@ class InstructionSet {
 
                     // Interpret CPU brand string if reported
                     if (nExIds_ >= 0x80000004) {
-                        memcpy(brand, extdata_[2].data(), sizeof(cpui));
-                        memcpy(brand + 16, extdata_[3].data(), sizeof(cpui));
-                        memcpy(brand + 32, extdata_[4].data(), sizeof(cpui));
-                        brand_ = brand;
+                        std::memcpy(brand.data(), extdata_[2].data(), sizeof(cpui));
+                        std::memcpy(brand.data() + 16, extdata_[3].data(), sizeof(cpui));
+                        std::memcpy(brand.data() + 32, extdata_[4].data(), sizeof(cpui));
+                        brand_ = brand.data();
                     }
                 }
 
