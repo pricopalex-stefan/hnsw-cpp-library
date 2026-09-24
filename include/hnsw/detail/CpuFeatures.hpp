@@ -6,9 +6,21 @@
 #include <array>
 #include <cstring>
 
-#ifdef _MSC_VER
-    #include <intrin.h>
-    #define HAS_CPUID_INTRIN 1
+#if defined(__x86_64__) || defined(__i386__) || \
+    defined(_M_X64) || defined(_M_IX86)
+
+    #ifdef _MSC_VER
+
+        #include <intrin.h>
+        #define HAS_CPUID_INTRIN 1
+
+    #elif defined(__GNUC__) || defined(__clang__)
+
+        #include <cpuid.h>
+        #define HAS_CPUID_INTRIN 1
+
+    #endif
+
 #endif
 
 namespace cpu_features {
@@ -20,92 +32,123 @@ class InstructionSet {
         class InstructionSet_Internal {
 
 #if HAS_CPUID_INTRIN
-        
-        public:
-            InstructionSet_Internal() 
-                : f_1_ECX_{ 0 },
-                f_1_EDX_{ 0 },
-                f_7_EBX_{ 0 },
-                f_7_ECX_{ 0 }
-            {
-                // int cpuInfo[4] =  {-1}
-                std::array<int, 4> cpui;
 
-                // Calling __cpui with 0x0 as the function_id argument
-                // gets the number of the highest valid function id
-                __cpuid(cpui.data(), 0x0);
-                nIds_ = cpui[0];
-
-                // For each CPUID function_id execute and save the registers into data
-                for (int i = 0; i <= nIds_; ++i) {
-                    __cpuidex(cpui.data(), i, 0);
-                    data_.push_back(cpui);
-                }
-
-                // Capture vendor string
-                char vendor[32];
-                memset(vendor, 0, sizeof(vendor));
-                *reinterpret_cast<int*>(vendor) = data_[0][1];
-                *reinterpret_cast<int*>(vendor + 4) = data_[0][3];
-                *reinterpret_cast<int*>(vendor + 8) = data_[0][2];
-                vendor_ = vendor;
-
-                if (vendor_ == "GenuineIntel") {
-                    isIntel_ = true;
-                } else if(vendor_ == "AuthenticAMD") {
-                    isAMD_ = true;
-                }
-
-                // load bitset with flags for function 0x00000001
-                if (nIds_ >= 1) {
-                    f_1_ECX_ = data_[1][2];
-                    f_1_EDX_ = data_[1][3];
-                }
-
-                // load bitset with flags for function 0x00000007
-                if (nIds_ >= 7)
+            private:
+                static void cpuid(
+                    std::array<int, 4>& out,
+                    int leaf 
+                )
                 {
-                    f_7_EBX_ = data_[7][1];
-                    f_7_ECX_ = data_[7][2];
+#ifdef _MSC_VER
+                    std::array<int, 4> reg;
+
+                    __cpuidex(reg.data(), leaf, 0);
+
+                    out = reg;
+
+#else
+
+                    // eax, ebx, ecx, edx
+                    std::array<int, 4> reg;
+
+                    __cpuid_count(
+                        leaf,
+                        0,
+                        reg[0],
+                        reg[1],
+                        reg[2],
+                        reg[3]
+                    );
+
+                    out = reg;
+#endif
                 }
-
-                // Calling __cpuid with 0x80000000 as the function_id argument
-                // gets the number of the highest valid extended ID.
-                __cpuid(cpui.data(), 0x80000000);
-                nExIds_ = cpui[0];
-
-                char brand[64];
-                memset(brand, 0, sizeof(brand));
-                
-                for (int i = 0x80000000; i <= nExIds_; ++i) {
-                    __cpuidex(cpui.data(), i, 0);
-                    extdata_.push_back(cpui);
-                }
-                
-
-                // Interpret CPU brand string if reported
-                if (nExIds_ >= 0x80000004) {
-                    memcpy(brand, extdata_[2].data(), sizeof(cpui));
-                    memcpy(brand + 16, extdata_[3].data(), sizeof(cpui));
-                    memcpy(brand + 32, extdata_[4].data(), sizeof(cpui));
-                    brand_ = brand;
-                }
-            }
-
-            int nIds_ { 0 };
-            int nExIds_ { 0 };
-            std::string vendor_;
-            std::string brand_;
-            bool isIntel_ { false };
-            bool isAMD_ { false };
-            std::bitset<32> f_1_ECX_;
-            std::bitset<32> f_1_EDX_;
-            std::bitset<32> f_7_EBX_;
-            std::bitset<32> f_7_ECX_;
-            std::vector<std::array<int, 4>> data_;
-            std::vector<std::array<int, 4>> extdata_;
         
-        #endif
+            public:
+                InstructionSet_Internal() 
+                    : f_1_ECX_{ 0 },
+                    f_1_EDX_{ 0 },
+                    f_7_EBX_{ 0 },
+                    f_7_ECX_{ 0 }
+                {
+                    // int cpuInfo[4] =  {-1}
+                    std::array<int, 4> cpui;
+
+                    // Calling __cpui with 0x0 as the function_id argument
+                    // gets the number of the highest valid function id
+                    cpuid(cpui, 0x0);
+                    nIds_ = cpui[0];
+
+                    // For each CPUID function_id execute and save the registers into data
+                    for (int i = 0; i <= nIds_; ++i) {
+                        cpuid(cpui, i);
+                        data_.push_back(cpui);
+                    }
+
+                    // Capture vendor string
+                    char vendor[32];
+                    memset(vendor, 0, sizeof(vendor));
+                    *reinterpret_cast<int*>(vendor) = data_[0][1];
+                    *reinterpret_cast<int*>(vendor + 4) = data_[0][3];
+                    *reinterpret_cast<int*>(vendor + 8) = data_[0][2];
+                    vendor_ = vendor;
+
+                    if (vendor_ == "GenuineIntel") {
+                        isIntel_ = true;
+                    } else if(vendor_ == "AuthenticAMD") {
+                        isAMD_ = true;
+                    }
+
+                    // load bitset with flags for function 0x00000001
+                    if (nIds_ >= 1) {
+                        f_1_ECX_ = data_[1][2];
+                        f_1_EDX_ = data_[1][3];
+                    }
+
+                    // load bitset with flags for function 0x00000007
+                    if (nIds_ >= 7)
+                    {
+                        f_7_EBX_ = data_[7][1];
+                        f_7_ECX_ = data_[7][2];
+                    }
+
+                    // Calling __cpuid with 0x80000000 as the function_id argument
+                    // gets the number of the highest valid extended ID.
+                    cpuid(cpui, 0x80000000);
+                    nExIds_ = cpui[0];
+
+                    char brand[64];
+                    memset(brand, 0, sizeof(brand));
+                    
+                    for (int i = 0x80000000; i <= nExIds_; ++i) {
+                        cpuid(cpui, i);
+                        extdata_.push_back(cpui);
+                    }
+                    
+
+                    // Interpret CPU brand string if reported
+                    if (nExIds_ >= 0x80000004) {
+                        memcpy(brand, extdata_[2].data(), sizeof(cpui));
+                        memcpy(brand + 16, extdata_[3].data(), sizeof(cpui));
+                        memcpy(brand + 32, extdata_[4].data(), sizeof(cpui));
+                        brand_ = brand;
+                    }
+                }
+
+                int nIds_ { 0 };
+                int nExIds_ { 0 };
+                std::string vendor_;
+                std::string brand_;
+                bool isIntel_ { false };
+                bool isAMD_ { false };
+                std::bitset<32> f_1_ECX_;
+                std::bitset<32> f_1_EDX_;
+                std::bitset<32> f_7_EBX_;
+                std::bitset<32> f_7_ECX_;
+                std::vector<std::array<int, 4>> data_;
+                std::vector<std::array<int, 4>> extdata_;
+            
+            #endif
 
         };
 
