@@ -4,8 +4,9 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <cstring>
 
-#if defined(__clang__) || defined(__GNUC__) || defined(__GNUG__) || defined(_MSC_VER)
+#ifdef _MSC_VER
     #include <intrin.h>
     #define HAS_CPUID_INTRIN 1
 #endif

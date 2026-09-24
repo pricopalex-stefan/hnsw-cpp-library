@@ -38,15 +38,16 @@ namespace hnsw {
                 return sqrt(sum);
             }
 
+            [[nodiscard]]
             #if defined(__clang__) || defined(__GNUC__)
                     __attribute__((target("avx2,fma")))
             #endif
-            [[nodiscard]]
             static float l2_avx(
                 const Vector& u,
                 const Vector& v
             ) noexcept
             {
+                #ifdef HAS_CPUID_INTRIN
                 __m256 sum = _mm256_setzero_ps();
 
                 std::size_t i = 0;
@@ -78,17 +79,20 @@ namespace hnsw {
                 } 
 
                 return std::sqrt(distance_squared);
+                #endif
+                return 0.0f;
             }
 
+            [[nodiscard]]
             #if defined(__clang__) || defined(__GNUC__)
                     __attribute__((target("avx512f")))
             #endif
-            [[nodiscard]]
             static float l2_avx512f(
                 const Vector& u,
                 const Vector& v
             ) noexcept
             {
+                #ifdef HAS_CPUID_INTRIN
                 __m512 sum = _mm512_setzero_ps();
 
                 std::size_t i = 0;
@@ -112,6 +116,8 @@ namespace hnsw {
                 } 
 
                 return std::sqrt(distance_squared);
+                #endif
+                return 0.0f;
             }
     };
 }
