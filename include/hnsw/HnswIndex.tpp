@@ -94,6 +94,8 @@ namespace hnsw {
             generation_tag_ = 1;
         }
 
+        mark_visited(entry_point);
+
         /**
          * Explore the candidate neighbors and keep at most ef results.
          * Candidates are explored from closest to farthest, while the result keeps
