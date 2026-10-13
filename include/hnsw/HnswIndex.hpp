@@ -24,11 +24,15 @@ namespace hnsw {
             /** 
              * @brief Constructs an empty HNSW index
              * 
+             * @param dimension The vector space dimension
              * @param config The configuration parameters for the HNSW index.
              */
-            explicit HnswIndex(
+            HnswIndex(
+                std::optional<std::size_t> dimension = std::nullopt,
                 HnswConfig config = {}
             );
+
+            explicit HnswIndex(HnswConfig config);
 
             /** 
              * @brief Adds a vector to the HNSW index.
@@ -59,6 +63,7 @@ namespace hnsw {
         
         private:
             M metric_;
+            std::optional<std::size_t> dimension_;
             HnswConfig config_;
 
             std::optional<std::size_t> global_entry_point_;

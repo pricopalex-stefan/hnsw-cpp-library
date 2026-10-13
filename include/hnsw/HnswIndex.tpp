@@ -7,15 +7,39 @@ namespace hnsw {
 
     template <Metric M>
     HnswIndex<M>::HnswIndex(
-        HnswConfig config)
-    : config_(config),
-      metric_{},
-      rng_(std::random_device{}()),
-      level_multiplier_(1.0 / std::log(1.0 * config_.M))
+        std::optional<std::size_t> dimension,
+        HnswConfig config
+    ) 
+        : dimension_(dimension),
+        config_(config),
+        metric_{},
+        rng_(std::random_device{}())
     {
+        if(config_.M <= 1) {
+            throw std::invalid_argument("M value should be greater than 1");
+        }
+
+        if(config_.ef_construction < 1) {
+            throw std::invalid_argument("ef_construction should be greater than 0");
+        }
+
+        if(config_.ef_search < 1) {
+            throw std::invalid_argument("ef_search should be greater than 0");
+        }
+
+        if(dimension.has_value() && *dimension == 0) {
+            throw std::invalid_argument("Vector dimension must be greater than zero");
+        }
         std::ranges::fill(visited_, 0);
         generation_tag_ = 1;
+        level_multiplier_ = 1.0 / std::log(1.0 * config_.M);
     }
+
+    template <Metric M>
+    HnswIndex<M>::HnswIndex(
+        HnswConfig config
+    ) : HnswIndex(std::nullopt, config)
+    {}
 
     // Sample nodes highest layer by using exponential distribution
     template <Metric M>
@@ -268,6 +292,18 @@ namespace hnsw {
 
     template <Metric M>
     void HnswIndex<M>::add(const Vector& data) {
+
+        if(data.empty()) {
+            throw std::invalid_argument("Input vector shouldn't be empty");
+        }
+
+        if(dimension_.has_value() && dimension_ != data.size()) {
+            throw std::invalid_argument("Input vector dimension does not match index dimension");
+        }
+
+        if(!dimension_.has_value()) {
+            dimension_ = data.size();
+        } 
         
         std::size_t level_to_insert = random_layer();
         Node nodeToInsert(nodes_.size(), data, level_to_insert);
@@ -337,6 +373,10 @@ namespace hnsw {
                 std::size_t k
     ) const
     {
+        if(dimension_.has_value() && *dimension_ != query.size()) {
+            throw std::invalid_argument("Query vector dimension does not match index dimension");
+        }
+
         if(!global_entry_point_.has_value() || k == 0) {
             return {};
         }
